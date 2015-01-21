@@ -26,17 +26,18 @@ use strict;
 use File::chdir;
 use Cwd qw/ abs_path /;
 
-my ($debug,$verbose,$help,$infile,$root_path);
+my ($debug,$verbose,$help,$infile,$root_path,$remove_last);
 my $obt = 1;# organize by type
 my $pwd = abs_path();
 
 my $result = GetOptions(
-    "infile:s"  =>  \$infile,
-    "root:s"    =>  \$root_path,
-    "obt"       =>  \$obt,
-    "debug"     =>  \$debug,
-    "verbose"   =>  \$verbose,
-    "help"      =>  \$help,
+    "infile:s"      =>  \$infile,
+    "root:s"        =>  \$root_path,
+    "obt"           =>  \$obt,
+    "removelast"    =>  \$remove_last,
+    "debug"         =>  \$debug,
+    "verbose"       =>  \$verbose,
+    "help"          =>  \$help,
 );
 
 help() if (!$infile);
@@ -45,30 +46,56 @@ say "wd: '$pwd'" if ($debug);
 open(my $infh,"<",$infile);
 
 my $tally = 0;
-my $max_tally = 100;
+my $max_tally = 100000;
+my $max_dups = 10;
 while (<$infh>) {
     ++$tally;
 
     chomp(my $filename = $_);
     say "file: '$filename'" if ($debug);
+    my $first_suffix = (0);
 
     if ($obt) {
+
+        if ($remove_last) {
+            # if file has two suffixes, remove the last one
+            if ($filename =~ /(\/.+\/.+\..+)\.(.+)$/) {
+                $filename = $1;
+                $first_suffix = $2;
+            }
+        }
+
+
         if ($filename =~ /\/.+\/(.+\.(.+?))$/) {
             my $suffix = $2;
             my $symlink_name = $1;
+            $symlink_name .= ".$first_suffix" if ($first_suffix);
             say "suffix: '$suffix'" if ($debug);
             say "symlink name: '$symlink_name'" if ($debug);
             if (!-d $suffix) {
                 mkdir($suffix);
             }
             $CWD = $suffix;# from File::chdir
+
+            my $dup = 0;
+            while (-e $symlink_name) {
+                ++$dup;
+                my ($pre,$post,$post2) = split /\./, $symlink_name;
+                $pre .= "_dup${dup}";
+                $symlink_name = $pre . "." . $post;
+                $symlink_name .= ".$post2" if ($post2);
+                if ($dup >= $max_dups) {
+                    say "max dups >= $max_dups for file '$symlink_name'";
+                    exit(1);
+                }
+            }
+            $filename .= ".$first_suffix" if ($first_suffix);
             
-            #if (!symlink($root_path ."/" . $filename,'test')) {
             if (!symlink($root_path ."/" . $filename,$symlink_name)) {
                 die "can't create a symlink to '${root_path}/${filename}': $!";
             }
-            $CWD = $pwd;
             
+            $CWD = $pwd;
         }
     }
 
