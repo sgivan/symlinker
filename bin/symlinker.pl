@@ -67,6 +67,7 @@ while (<$infh>) {
 
 
         if ($filename =~ /\/.+\/(.+\.(.+?))$/) {
+            say "will symlink '$filename'" if ($debug);
             my $suffix = $2;
             my $symlink_name = $1;
             $symlink_name .= ".$first_suffix" if ($first_suffix);
@@ -114,9 +115,10 @@ sub help {
 
 say <<HELP;
 
-    "infile:s"  you must provide an infile
-    "root:s"    root path of input files
-    "obt"       organize by file type as determined by file suffix
+    "infile:s"      you must provide an infile
+    "root:s"        root path of input files
+    "obt"           organize by file type as determined by file suffix
+    "removelast"    if files have more than one suffix, remove the last one
     "debug"     
     "verbose"   
     "help"      
